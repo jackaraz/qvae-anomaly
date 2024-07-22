@@ -259,21 +259,24 @@ class ReduceLROnPlateau:
 
 
 def circle(
-    samples: int,
-    center: Tuple[List[float, float]] = ([0.0, 0.0],),
-    radius: Tuple[float] = (np.sqrt(2 / np.pi),),
+    samples: int, center: List[List[float, float]] = None, radius: List[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate Circle data
 
     Args:
         samples (int): number of samples
-        center (Tuple[List[float, float]], optional): Center of the circles. Defaults to [[0.0, 0.0]].
-        radius (Tuple[float], optional): radius of the circles. Defaults to [np.sqrt(2 / np.pi)].
+        center (List[List[float, float]], optional): Center of the circles. Defaults to [[0.0, 0.0]].
+        radius (List[float], optional): radius of the circles. Defaults to [np.sqrt(2 / np.pi)].
 
     Returns:
         `Tuple[np.ndarray, np.ndarray]`:
     """
+    if center is None:
+        center = [[0.0, 0.0]]
+    if radius is None:
+        radius = [np.sqrt(2.0 / np.pi)]
+
     x = 2 * np.random.random((samples, 2)) - 1
     y = np.zeros(samples)
     for c, r in zip(center, radius):
