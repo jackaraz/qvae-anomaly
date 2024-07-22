@@ -259,7 +259,7 @@ class ReduceLROnPlateau:
 
 
 def circle(
-    samples: int, center: List[List[float, float]] = None, radius: List[float] = None
+    samples: int, center: List[List[float]] = None, radius: List[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generate Circle data
