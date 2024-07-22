@@ -17,12 +17,7 @@ import tqdm
 import yaml
 from flax.training.early_stopping import EarlyStopping
 from pennylane.operation import AnyWires, Operation
-from sklearn.datasets import (
-    make_blobs,
-    make_circles,
-    make_moons,
-    make_s_curve,
-)
+from sklearn.datasets import make_circles, make_moons, make_s_curve
 from sklearn.model_selection import train_test_split
 
 jax.config.update("jax_enable_x64", True)
