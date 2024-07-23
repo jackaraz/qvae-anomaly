@@ -22,7 +22,7 @@ from sklearn.model_selection import train_test_split
 
 jax.config.update("jax_enable_x64", True)
 
-# pylint: disable=W0621,C0103,W1514
+# pylint: disable=W0621,C0103,W1514,C0200
 
 _rot = {"X": qml.RX, "Y": qml.RY, "Z": qml.RZ}
 
@@ -74,19 +74,17 @@ class Layer(Operation):
         n_layers = qml.math.shape(weights)[0]
         wires = qml.wires.Wires(wires)
         if alternate_embedding:
-
-            def embed(layer: int):
-                embeding = [qml.RY, qml.RX, qml.RZ][layer % 3]
-                return [embeding(inputs[i], wires=wires[i]) for i in range(len(wires))]
-
+            embeding = []
+            for i in range(len(wires)):
+                embeding += [
+                    r(inputs[i], wires=wires[i]) for r in [qml.RY, qml.RX, qml.RZ]
+                ]
         else:
-
-            def embed(layer: int):
-                return [qml.RY(inputs[i], wires=wires[i]) for i in range(len(wires))]
+            embeding = [qml.RY(inputs[i], wires=wires[i]) for i in range(len(wires))]
 
         op_list = []
         if not reupload:
-            op_list += embed(0)
+            op_list += embeding
 
         for l in range(n_layers):
             for i in range(len(wires)):  # pylint: disable=consider-using-enumerate
@@ -101,7 +99,7 @@ class Layer(Operation):
                     op_list.append(qml.CNOT(wires=act_on))
 
             if reupload and l < n_layers - 1:
-                op_list += embed(l)
+                op_list += embeding
 
         return op_list
 
