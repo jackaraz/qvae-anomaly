@@ -34,7 +34,13 @@ class Layer(Operation):
     grad_method = None
 
     def __init__(
-        self, inpts, weights, wires, reupload: bool = True, rot: List[Operation] = None
+        self,
+        inpts,
+        weights,
+        wires,
+        reupload: bool = True,
+        rot: List[Operation] = None,
+        alternate_embedding: bool = False,
     ):
         shape = qml.math.shape(weights)[-3:]
         assert len(inpts) == len(
@@ -55,21 +61,32 @@ class Layer(Operation):
             "inputs": inpts,
             "reupload": reupload,
             "rot": rot,
+            "alternate_embedding": alternate_embedding,
         }
 
         super().__init__(weights, wires=wires, id=None)
 
     @staticmethod
     def compute_decomposition(
-        weights, wires, ranges, inputs, reupload, rot
+        weights, wires, ranges, inputs, reupload, rot, alternate_embedding
     ):  # pylint: disable=arguments-differ, too-many-arguments
 
         n_layers = qml.math.shape(weights)[0]
         wires = qml.wires.Wires(wires)
-        embedding = [qml.RY(inputs[i], wires=wires[i]) for i in range(len(wires))]
+        if alternate_embedding:
+
+            def embed(layer: int):
+                embeding = [qml.RY, qml.RX, qml.RZ][layer % 3]
+                return [embeding(inputs[i], wires=wires[i]) for i in range(len(wires))]
+
+        else:
+
+            def embed(layer: int):
+                return [qml.RY(inputs[i], wires=wires[i]) for i in range(len(wires))]
+
         op_list = []
         if not reupload:
-            op_list += embedding
+            op_list += embed(0)
 
         for l in range(n_layers):
             for i in range(len(wires)):  # pylint: disable=consider-using-enumerate
@@ -84,7 +101,7 @@ class Layer(Operation):
                     op_list.append(qml.CNOT(wires=act_on))
 
             if reupload and l < n_layers - 1:
-                op_list += embedding
+                op_list += embed(l)
 
         return op_list
 
@@ -109,6 +126,7 @@ def qvae(
     nlayers: int = 1,
     reupload: bool = True,
     rotseq: List[Text] = None,
+    alternate_embedding: bool = False,
 ) -> Tuple[Callable, List[int]]:
     """
     Construct qVAE circuit
@@ -139,6 +157,7 @@ def qvae(
             wires=range(n_vqa_wires),
             reupload=reupload,
             rot=rotseq,
+            alternate_embedding=alternate_embedding,
         )
 
         # SWAP test to measure fidelity
@@ -329,6 +348,7 @@ def train(args):
         args.NLAYERS,
         reupload=args.REUPLOAD,
         rotseq=args.ROTSEQ,
+        alternate_embedding=args.ALTEMBED,
     )
 
     optimizer = optax.inject_hyperparams(optax.adam)(learning_rate=args.ETA)
@@ -498,6 +518,14 @@ if __name__ == "__main__":
         default=False,
         help="Execute data-reuploading circuit.",
         dest="REUPLOAD",
+    )
+    parameters.add_argument(
+        "--alternate-embedding",
+        "-alt-emb",
+        action="store_true",
+        default=False,
+        help="Alternate embedding between layers from RY RX RZ.",
+        dest="ALTEMBED",
     )
     parameters.add_argument(
         "--linear-loss",
