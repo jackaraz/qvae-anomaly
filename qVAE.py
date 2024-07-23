@@ -15,14 +15,15 @@ import pandas as pd
 import pennylane as qml
 import tqdm
 import yaml
-from flax.training.early_stopping import EarlyStopping
+
+# from flax.training.early_stopping import EarlyStopping
 from pennylane.operation import AnyWires, Operation
 from sklearn.datasets import make_circles, make_moons, make_s_curve
 from sklearn.model_selection import train_test_split
 
 jax.config.update("jax_enable_x64", True)
 
-# pylint: disable=W0621,C0103,W1514,C0200
+# pylint: disable=W0621,C0103,W1514,C0200,R0913
 
 _rot = {"X": qml.RX, "Y": qml.RY, "Z": qml.RZ}
 
@@ -37,10 +38,6 @@ class Layer(Operation):
         self, inpts, weights, wires, reupload: bool = True, rot: List[Operation] = None
     ):
         shape = qml.math.shape(weights)[-3:]
-        assert len(inpts) == len(
-            wires
-        ), f"wrong dimensionality {len(inpts)} != {len(wires)}"
-
         if len(wires) > 1:
             # tile ranges with iterations of range(1, n_wires)
             ranges = tuple((l % (len(wires) - 1)) + 1 for l in range(shape[0]))
