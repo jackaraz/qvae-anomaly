@@ -63,9 +63,9 @@ class Layer(Operation):
 
         n_layers = qml.math.shape(weights)[0]
         wires = qml.wires.Wires(wires)
-        embeding = [
-            qml.RY(inputs[i % len(inputs)], wires=wires[i]) for i in range(len(wires))
-        ]
+
+        index = sorted(list(range(len(inputs))) * (len(wires) // len(inputs)))
+        embeding = [qml.RY(inputs[index[i]], wires=wires[i]) for i in range(len(wires))]
 
         op_list = []
         if not reupload:
