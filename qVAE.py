@@ -321,7 +321,7 @@ def train(args):
     X_train, X_val = get_data(args.DATAPATH)
 
     assert (
-        args.NREF < X_train.shape[-1]
+        args.NREF < X_train.shape[-1] * args.PAREMBED
     ), "Number of reference qubits should be less than input dimensions."
 
     circ, shape = qvae(
