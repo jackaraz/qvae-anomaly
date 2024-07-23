@@ -286,7 +286,7 @@ def circle(
 
 def get_data(data_source: Text):
     """Retreive data"""
-    if "csv" in data_source:
+    if data_source.endswith(".csv"):
         # Standardized data
         data = pd.read_csv(data_source, delimiter=",")
         X_train, X_val = train_test_split(data.values, test_size=0.2, shuffle=False)
