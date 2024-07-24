@@ -616,4 +616,8 @@ if __name__ == "__main__":
     # if args.TEST:
     #     test(args)
 
+    print("<><><> Arguments <><><>")
+    for key, item in vars(args).items():
+        print(f"   * {key} : {item}")
+    print("<><><><><><><><><><><>")
     train(args)
