@@ -35,7 +35,13 @@ class Layer(Operation):
     grad_method = None
 
     def __init__(
-        self, inpts, weights, wires, reupload: bool = True, rot: List[Operation] = None
+        self,
+        inpts,
+        weights,
+        wires,
+        reupload: bool = True,
+        rot: List[Operation] = None,
+        alternate_embedding: bool = False,
     ):
         shape = qml.math.shape(weights)[-3:]
         if len(wires) > 1:
@@ -52,20 +58,22 @@ class Layer(Operation):
             "inputs": inpts,
             "reupload": reupload,
             "rot": rot,
+            "alternate_embedding": alternate_embedding,
         }
 
         super().__init__(weights, wires=wires, id=None)
 
     @staticmethod
     def compute_decomposition(
-        weights, wires, ranges, inputs, reupload, rot
+        weights, wires, ranges, inputs, reupload, rot, alternate_embedding
     ):  # pylint: disable=arguments-differ, too-many-arguments
 
         n_layers = qml.math.shape(weights)[0]
         wires = qml.wires.Wires(wires)
 
+        rottp = [qml.RY, qml.RX if alternate_embedding else qml.RY] * (len(wires) // 2)
         index = sorted(list(range(len(inputs))) * (len(wires) // len(inputs)))
-        embeding = [qml.RY(inputs[index[i]], wires=wires[i]) for i in range(len(wires))]
+        embeding = [rottp[i](inputs[index[i]], wires=wires[i]) for i in range(len(wires))]
 
         op_list = []
         if not reupload:
@@ -110,6 +118,7 @@ def qvae(
     reupload: bool = True,
     rotseq: List[Text] = None,
     parallel_embedding: int = 1,
+    alternate_embedding: bool = False,
 ) -> Tuple[Callable, List[int]]:
     """
     Construct qVAE circuit
@@ -140,6 +149,7 @@ def qvae(
             wires=range(n_vqa_wires),
             reupload=reupload,
             rot=rotseq,
+            alternate_embedding=alternate_embedding,
         )
 
         # SWAP test to measure fidelity
@@ -273,10 +283,8 @@ def circle(
     Returns:
         `Tuple[np.ndarray, np.ndarray]`:
     """
-    if center is None:
-        center = [[0.0, 0.0]]
-    if radius is None:
-        radius = [np.sqrt(2.0 / np.pi)]
+    center = center or [[0.0, 0.0]]
+    radius = radius or [np.sqrt(2.0 / np.pi)]
 
     x = 2 * np.random.random((samples, 2)) - 1
     y = np.zeros(samples)
@@ -508,6 +516,14 @@ if __name__ == "__main__":
         default=1,
         help="Embed the dataset multiple times (increases number of qubits). Defaults to 1",
         dest="PAREMBED",
+    )
+    parameters.add_argument(
+        "--alternate-embedding",
+        "-alt-emb",
+        action="store_true",
+        default=False,
+        help="Alternate embedding procedure i.e. one qubit RY one qubit RX (designed for parallel embedding)",
+        dest="ALTEMBED",
     )
     parameters.add_argument(
         "--linear-loss",
