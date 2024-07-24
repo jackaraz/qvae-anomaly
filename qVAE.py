@@ -339,6 +339,7 @@ def train(args):
         reupload=args.REUPLOAD,
         rotseq=args.ROTSEQ,
         parallel_embedding=args.PAREMBED,
+        alternate_embedding=args.ALTEMBED,
     )
 
     optimizer = optax.inject_hyperparams(optax.adam)(learning_rate=args.ETA)
