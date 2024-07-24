@@ -71,9 +71,12 @@ class Layer(Operation):
         n_layers = qml.math.shape(weights)[0]
         wires = qml.wires.Wires(wires)
 
-        rottp = [qml.RY, qml.RX if alternate_embedding else qml.RY] * (len(wires) // 2)
         index = sorted(list(range(len(inputs))) * (len(wires) // len(inputs)))
-        embeding = [rottp[i](inputs[index[i]], wires=wires[i]) for i in range(len(wires))]
+        rotemb = [qml.RY, qml.RX if alternate_embedding else qml.RY]
+        embeding = [
+            rotemb[idx % 2](inputs[index[idx]], wires=wires[idx])
+            for idx in range(len(wires))
+        ]
 
         op_list = []
         if not reupload:
@@ -620,4 +623,5 @@ if __name__ == "__main__":
     for key, item in vars(args).items():
         print(f"   * {key} : {item}")
     print("<><><><><><><><><><><>")
+
     train(args)
