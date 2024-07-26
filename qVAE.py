@@ -48,7 +48,7 @@ class Layer(Operation):
             weights = jnp.expand_dims(weights, axis=1)
             shape = qml.math.shape(weights)
         shape = qml.math.shape(weights)
-        range_len = shape[0] if shape[1] == 1 else shape[1]
+        range_len = shape[0] + shape[1]
         if len(wires) > 1:
             # tile ranges with iterations of range(1, n_wires)
             ranges = tuple((l % (len(wires) - 1)) + 1 for l in range(range_len))
@@ -366,7 +366,14 @@ def train(args):
     )
 
     optimizer = optax.inject_hyperparams(optax.adam)(learning_rate=args.ETA)
-    reduce_on_plateau = ReduceLROnPlateau(check_every=25, min_lr=1e-4, store_lr=True)
+    # reduce_on_plateau = ReduceLROnPlateau(check_every=25, min_lr=1e-4, store_lr=True)
+    scheduler = optax.exponential_decay(
+        init_value=args.ETA,
+        transition_steps=70,
+        decay_rate=0.5,
+        staircase=True,
+        end_value=1e-4,
+    )
 
     batch_cost, train_step = get_cost(circ, optimizer, args.LINLOSS)
 
@@ -377,8 +384,7 @@ def train(args):
     parameters = jnp.array(np.random.uniform(-np.pi, np.pi, shape))
     opt_state = optimizer.init(parameters)
 
-    train_loss = []
-    val_loss = []
+    train_loss, val_loss, lr_state = [], [], []
     with tqdm.tqdm(
         total=args.EPOCHS, unit="Epoch", bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"
     ) as pbar:
@@ -400,10 +406,12 @@ def train(args):
                 )
             )
 
-            opt_state = reduce_on_plateau(opt_state, epoch + 1, np.array(val_loss))
+            opt_state.hyperparams["learning_rate"] = scheduler(epoch + 1)
+            lr_state.append(float(opt_state.hyperparams["learning_rate"]))
+            # opt_state = reduce_on_plateau(opt_state, epoch + 1, np.array(val_loss))
 
             pbar.set_postfix_str(
-                f"train loss: {train_loss[-1]:.3e}, val loss: {val_loss[-1]:.3e}, lr: {reduce_on_plateau.lr[-1]:.3e}"
+                f"train loss: {train_loss[-1]:.3e}, val loss: {val_loss[-1]:.3e}, lr: {lr_state[-1]:.3e}"
             )
 
             # early_stop = early_stop.update(val_loss[-1])
@@ -420,7 +428,7 @@ def train(args):
         param=np.array(parameters),
         train_loss=train_loss,
         val_loss=val_loss,
-        lr=reduce_on_plateau.lr,
+        lr=lr_state,
     )
     print(f" * Output folder: {args.OUTPATH}")
 
