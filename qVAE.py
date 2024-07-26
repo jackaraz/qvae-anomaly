@@ -370,7 +370,7 @@ def train(args):
     # reduce_on_plateau = ReduceLROnPlateau(check_every=25, min_lr=1e-4, store_lr=True)
     scheduler = optax.exponential_decay(
         init_value=args.ETA,
-        transition_steps=70,
+        transition_steps=100,
         decay_rate=0.5,
         staircase=True,
         end_value=1e-4,
