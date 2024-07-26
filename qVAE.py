@@ -44,11 +44,11 @@ class Layer(Operation):
         alternate_embedding: bool = False,
     ):
         shape = qml.math.shape(weights)
-        if len(shape) == 3:
-            weights = jnp.expand_dims(weights, axis=1)
-            shape = qml.math.shape(weights)
-        shape = qml.math.shape(weights)
-        range_len = shape[0] * shape[1]
+        # if len(shape) == 3:
+        #     weights = jnp.expand_dims(weights, axis=1)
+        #     shape = qml.math.shape(weights)
+        # shape = qml.math.shape(weights)
+        range_len = shape[0]  # * shape[1]
         if len(wires) > 1:
             # tile ranges with iterations of range(1, n_wires)
             ranges = tuple((l % (len(wires) - 1)) + 1 for l in range(range_len))
@@ -74,11 +74,11 @@ class Layer(Operation):
     ):  # pylint: disable=arguments-differ, too-many-arguments
 
         weight_shape = qml.math.shape(weights)
-        if len(weight_shape) == 3:
-            weights = jnp.expand_dims(weights, axis=1)
-            weight_shape = qml.math.shape(weights)
+        # if len(weight_shape) == 3:
+        #     weights = jnp.expand_dims(weights, axis=1)
+        #     weight_shape = qml.math.shape(weights)
         n_layers = weight_shape[0]
-        sub_layers = weight_shape[1]
+        # sub_layers = weight_shape[1]
         wires = qml.wires.Wires(wires)
 
         index = sorted(list(range(len(inputs))) * (len(wires) // len(inputs)))
@@ -92,22 +92,20 @@ class Layer(Operation):
         if not reupload:
             op_list += embeding
 
-        nlayer = 0
+        # nlayer = 0
         for l in range(n_layers):
-            for sl in range(sub_layers):
-                for i in range(len(wires)):  # pylint: disable=consider-using-enumerate
-                    op_list += [
-                        rot[jdx](weights[..., l, sl, i, jdx], wires=wires[i])
-                        for jdx in range(len(rot))
-                    ]
+            # for sl in range(sub_layers):
+            for i in range(len(wires)):
+                op_list += [
+                    rot[jdx](weights[..., l, i, jdx], wires=wires[i])
+                    for jdx in range(len(rot))
+                ]
 
-                if len(wires) > 1:
-                    for i in range(len(wires)):
-                        act_on = wires.subset(
-                            [i, i + ranges[nlayer]], periodic_boundary=True
-                        )
-                        op_list.append(qml.CNOT(wires=act_on))
-                    nlayer += 1
+            if len(wires) > 1:
+                for i in range(len(wires)):
+                    act_on = wires.subset([i, i + ranges[l]], periodic_boundary=True)
+                    op_list.append(qml.CNOT(wires=act_on))
+                # nlayer += 1
 
             if reupload and l < n_layers - 1:
                 op_list += embeding
@@ -115,28 +113,24 @@ class Layer(Operation):
         return op_list
 
     @staticmethod
-    def shape(
-        n_layers: int, n_sublayers: int, n_wires: int, nrot: int
-    ) -> Tuple[int, int, int]:
+    def shape(n_layers: int, n_wires: int, nrot: int) -> Tuple[int, int, int]:
         """Shape of the input
 
         Args:
             n_layers (int): number of layers
-            n_sublayers (int): number of layers for trainable portion in case of reuploading
             n_wires (int): number of wires
             nrot (int): number of rotation gates
 
         Returns:
             Tuple[int, int, int]: (nlayer, nwire, nrot)
         """
-        return n_layers, n_sublayers, n_wires, nrot
+        return n_layers, n_wires, nrot
 
 
 def qvae(
     ndata: int,
     nref: int,
     nlayers: int = 1,
-    nsublayers: int = 1,
     reupload: bool = True,
     rotseq: List[Text] = None,
     parallel_embedding: int = 1,
@@ -161,8 +155,7 @@ def qvae(
 
     numb_all_wires = n_vqa_wires + n_reference + 1
 
-    nsublayers = nsublayers if reupload else 1
-    shape = list(Layer.shape(nlayers, nsublayers, n_vqa_wires, len(rotseq)))
+    shape = list(Layer.shape(nlayers, n_vqa_wires, len(rotseq)))
 
     @qml.qnode(qml.device("default.qubit.jax", wires=numb_all_wires), interface="jax")
     def qvae_circuit(inpt: jnp.array, param: jnp.array) -> jnp.array:
@@ -359,7 +352,6 @@ def train(args):
         ndata=X_train.shape[-1],
         nref=args.NREF,
         nlayers=args.NLAYERS,
-        nsublayers=args.NSUBLAYERS,
         reupload=args.REUPLOAD,
         rotseq=args.ROTSEQ,
         parallel_embedding=args.PAREMBED,
@@ -495,14 +487,14 @@ if __name__ == "__main__":
         help="Number of ansätz layers, default 1.",
         dest="NLAYERS",
     )
-    parameters.add_argument(
-        "-nsublayers",
-        type=int,
-        default=1,
-        help="In case of reuploading adds extra layers to the trainable"
-        " portion of the ansatz. Defaults to 1.",
-        dest="NSUBLAYERS",
-    )
+    # parameters.add_argument(
+    #     "-nsublayers",
+    #     type=int,
+    #     default=1,
+    #     help="In case of reuploading adds extra layers to the trainable"
+    #     " portion of the ansatz. Defaults to 1.",
+    #     dest="NSUBLAYERS",
+    # )
     parameters.add_argument(
         "--nepochs",
         "-ne",
