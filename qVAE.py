@@ -44,11 +44,7 @@ class Layer(Operation):
         alternate_embedding: bool = False,
     ):
         shape = qml.math.shape(weights)
-        # if len(shape) == 3:
-        #     weights = jnp.expand_dims(weights, axis=1)
-        #     shape = qml.math.shape(weights)
-        # shape = qml.math.shape(weights)
-        range_len = shape[0]  # * shape[1]
+        range_len = shape[0]
         if len(wires) > 1:
             # tile ranges with iterations of range(1, n_wires)
             ranges = tuple((l % (len(wires) - 1)) + 1 for l in range(range_len))
@@ -71,14 +67,10 @@ class Layer(Operation):
     @staticmethod
     def compute_decomposition(
         weights, wires, ranges, inputs, reupload, rot, alternate_embedding
-    ):  # pylint: disable=arguments-differ, too-many-arguments
+    ):  # pylint: disable=arguments-differ, too-many-arguments, too-many-locals
 
         weight_shape = qml.math.shape(weights)
-        # if len(weight_shape) == 3:
-        #     weights = jnp.expand_dims(weights, axis=1)
-        #     weight_shape = qml.math.shape(weights)
         n_layers = weight_shape[0]
-        # sub_layers = weight_shape[1]
         wires = qml.wires.Wires(wires)
 
         index = sorted(list(range(len(inputs))) * (len(wires) // len(inputs)))
@@ -94,7 +86,6 @@ class Layer(Operation):
 
         # nlayer = 0
         for l in range(n_layers):
-            # for sl in range(sub_layers):
             for i in range(len(wires)):
                 op_list += [
                     rot[jdx](weights[..., l, i, jdx], wires=wires[i])
@@ -105,7 +96,6 @@ class Layer(Operation):
                 for i in range(len(wires)):
                     act_on = wires.subset([i, i + ranges[l]], periodic_boundary=True)
                     op_list.append(qml.CNOT(wires=act_on))
-                # nlayer += 1
 
             if reupload and l < n_layers - 1:
                 op_list += embeding
