@@ -230,57 +230,6 @@ def get_cost(circuit, optimizer, linear_loss: bool = False):
     return batch_cost, train_step
 
 
-class ReduceLROnPlateau:
-    """
-    Reduce learning rate on plateau
-
-    Parameters
-    ----------
-    check_every : int, optional
-        check every such epoch. The default is 20.
-    min_lr : float, optional
-        Min value that lr can take. The default is 1e-5.
-    scale : float, optional
-        LR scale factor. The default is 0.5.
-    min_improvement_rate : float, optional
-        Minimum amount of improvement which does not require lr update.
-        The default is 0.01.
-    store_lr : TYPE, optional
-        Store lr updates. The default is False.
-    """
-
-    def __init__(
-        self,
-        check_every: int = 20,
-        min_lr: float = 1e-5,
-        scale: float = 0.5,
-        min_improvement_rate: float = 0.01,
-        store_lr=False,
-    ):
-        self.min_lr = min_lr
-        self.scale = scale
-        self.check_every = check_every
-        self.min_improvement_rate = min_improvement_rate
-        self.min_loss = 1e99
-        self.store_lr = store_lr
-        self.lr = []
-
-    def __call__(self, opt_state, epoch: int, losses: List[float]):
-        current_lr = opt_state.hyperparams["learning_rate"]
-        if self.store_lr:
-            self.lr.append(float(current_lr))
-
-        if current_lr > self.min_lr and epoch % self.check_every == 0:
-
-            min_loss = min(losses[-self.check_every :])
-            if abs(min_loss - self.min_loss) >= self.min_improvement_rate:
-                self.min_loss = min_loss
-                opt_state.hyperparams["learning_rate"] = jnp.clip(
-                    current_lr * self.scale, self.min_lr, None
-                )
-        return opt_state
-
-
 def circle(
     samples: int, center: List[List[float]] = None, radius: List[float] = None
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -306,7 +255,22 @@ def circle(
 
 
 def get_data(data_source: Text, feat_dim: int = -1) -> Tuple[np.ndarray, np.ndarray]:
-    """Retreive data"""
+    """
+    Retreive data
+
+    Args:
+        data_source (``Text``): data source, either a csv file or
+            "circle", "circles", "moons", "s_curve"
+        feat_dim (``int``, default ``-1``): limit the dimensionality of the features
+            (only for csv data)
+
+    Raises:
+        ``ValueError``: Raised if the data source is unknown
+
+    Returns:
+        ``Tuple[np.ndarray, np.ndarray]``:
+        training and validation data
+    """
     if data_source.endswith(".csv"):
         # Standardized data
         data = pd.read_csv(data_source, delimiter=",")
@@ -331,7 +295,8 @@ def get_data(data_source: Text, feat_dim: int = -1) -> Tuple[np.ndarray, np.ndar
         raise ValueError(f"Unkown data source: {data_source}")
 
     print(
-        f"   * Number of training samples {len(X_train)}, number of validation samples {len(X_val)}, "
+        f"   * Number of training samples {len(X_train)}, "
+        f"number of validation samples {len(X_val)}, "
         f"{X_train.shape[-1]}D feature space"
     )
     return X_train, X_val
@@ -359,7 +324,6 @@ def train(args):
     )
 
     optimizer = optax.inject_hyperparams(optax.adam)(learning_rate=args.ETA)
-    # reduce_on_plateau = ReduceLROnPlateau(check_every=25, min_lr=1e-4, store_lr=True)
     scheduler = optax.exponential_decay(
         init_value=args.ETA,
         transition_steps=100,
@@ -369,10 +333,6 @@ def train(args):
     )
 
     batch_cost, train_step = get_cost(circ, optimizer, args.LINLOSS)
-
-    # early_stop = EarlyStopping(
-    #     min_delta=args.MINDELTA, patience=args.PATIENCE, patience_count=30
-    # )
 
     parameters = jnp.array(np.random.uniform(-np.pi, np.pi, shape))
     opt_state = optimizer.init(parameters)
@@ -403,10 +363,10 @@ def train(args):
 
             opt_state.hyperparams["learning_rate"] = scheduler(epoch + 1)
             lr_state.append(float(opt_state.hyperparams["learning_rate"]))
-            # opt_state = reduce_on_plateau(opt_state, epoch + 1, np.array(val_loss))
 
             pbar.set_postfix_str(
-                f"train loss: {train_loss[-1]:.3e}, val loss: {val_loss[-1]:.3e}, lr: {lr_state[-1]:.3e}"
+                f"train loss: {train_loss[-1]:.3e}, val loss: {val_loss[-1]:.3e}, "
+                f"lr: {lr_state[-1]:.3e}"
             )
 
             # Save only the best model
@@ -414,11 +374,6 @@ def train(args):
                 to_save = np.array(parameters)
                 min_val_loss = val_loss[-1]
                 best_idx = epoch
-
-            # early_stop = early_stop.update(val_loss[-1])
-            # if early_stop.should_stop:
-            #     print(f"Met early stopping criteria, breaking at epoch {epoch}")
-            #     break
 
             pbar.update()
 
@@ -498,7 +453,8 @@ if __name__ == "__main__":
         "-alt-emb",
         action="store_true",
         default=False,
-        help="Alternate embedding procedure i.e. one qubit RY one qubit RX (designed for parallel embedding)",
+        help="Alternate embedding procedure i.e. one qubit RY one qubit RX "
+        "(designed for parallel embedding)",
         dest="ALTEMBED",
     )
     parameters.add_argument(
