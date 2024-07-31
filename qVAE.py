@@ -305,12 +305,15 @@ def circle(
     return x, y
 
 
-def get_data(data_source: Text):
+def get_data(data_source: Text, feat_dim: int = -1) -> Tuple[np.ndarray, np.ndarray]:
     """Retreive data"""
     if data_source.endswith(".csv"):
         # Standardized data
         data = pd.read_csv(data_source, delimiter=",")
-        X_train, X_val = train_test_split(data.values, test_size=0.2, shuffle=False)
+        nfeat = feat_dim if feat_dim > 0 else data.shape[-1]
+        X_train, X_val = train_test_split(
+            data.values[:, :nfeat], test_size=0.2, shuffle=False
+        )
         X_train, _ = train_test_split(X_train, test_size=0.01, shuffle=False)
     elif data_source == "circle":
         Xdata, ydata = circle(100000, center=[(-0.45, -0.45)])
@@ -338,7 +341,7 @@ def train(args):
 
     jax.config.update("jax_platform_name", "gpu" if args.GPU else "cpu")
 
-    X_train, X_val = get_data(args.DATAPATH)
+    X_train, X_val = get_data(data_source=args.DATAPATH, feat_dim=args.FEATDIM)
 
     assert (
         args.NREF < X_train.shape[-1] * args.PAREMBED
@@ -431,48 +434,6 @@ def train(args):
     print(f" * Output folder: {args.OUTPATH}")
 
 
-# def test(args):
-#     data = pd.read_csv(args.DATAPATH, delimiter=",", index_col=0)
-#     data = data[
-#         (data.lep1pt < 1000.0)
-#         & (data.lep2pt < 900.0)
-#         & (data.theta_ll < np.pi)
-#         & (data.b1pt < 1000.0)
-#         & (data.b2pt < 900.0)
-#         & (data.theta_bb < np.pi)
-#         & (data.MET < 1000.0)
-#     ]
-#     scaler = MinMaxScaler(feature_range=(-np.pi, np.pi)).fit(data.values)
-#     del data
-
-#     test_data = pd.read_csv(args.TESTDATAPATH, delimiter=",", index_col=0)
-#     test_data = test_data[
-#         (test_data.lep1pt < 1000.0)
-#         & (test_data.lep2pt < 900.0)
-#         & (test_data.theta_ll < np.pi)
-#         & (test_data.b1pt < 1000.0)
-#         & (test_data.b2pt < 900.0)
-#         & (test_data.theta_bb < np.pi)
-#         & (test_data.MET < 1000.0)
-#     ]
-#     X_test = scaler.transform(test_data.values)
-#     del test_data
-
-#     with open(os.path.join(args.RESPATH, "config.yaml"), "r") as f:
-#         config = yaml.safe_load(f)
-
-#     opt_res = np.load(os.path.join(args.RESPATH, "results.npz"))
-#     circuit, shape = qvae(
-#         X_test.shape[1], config["NREF"], config["NLAYERS"], config["REUPLOAD"]
-#     )
-
-#     @jax.jit
-#     def batch_fid(data, param):
-#         return jax.vmap(lambda dat: circuit(dat, param), in_axes=0)(data)
-
-#     sig = batch_fid(X_test, opt_res["param"])
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Test or optimise qVAE for anomaly detection"
@@ -508,22 +469,22 @@ if __name__ == "__main__":
         help="Number of epochs, default 500.",
         dest="EPOCHS",
     )
-    parameters.add_argument(
-        "--min-delta",
-        "-md",
-        type=float,
-        default=1e-4,
-        help="Minimum delta for early stopping, default 1e-4.",
-        dest="MINDELTA",
-    )
-    parameters.add_argument(
-        "--patientce",
-        "-pat",
-        type=int,
-        default=150,
-        help="Patience for early stopping, default 100.",
-        dest="PATIENCE",
-    )
+    # parameters.add_argument(
+    #     "--min-delta",
+    #     "-md",
+    #     type=float,
+    #     default=1e-4,
+    #     help="Minimum delta for early stopping, default 1e-4.",
+    #     dest="MINDELTA",
+    # )
+    # parameters.add_argument(
+    #     "--patientce",
+    #     "-pat",
+    #     type=int,
+    #     default=150,
+    #     help="Patience for early stopping, default 100.",
+    #     dest="PATIENCE",
+    # )
     parameters.add_argument(
         "--batch-size",
         "-bs",
@@ -580,24 +541,18 @@ if __name__ == "__main__":
         help="Rotation sequence, default Y",
         dest="ROTSEQ",
     )
+    parameters.add_argument(
+        "--feature-dimension",
+        "-feat-dim",
+        type=int,
+        default=-1,
+        help="Number of features to be included for training. Defaults to -1",
+        dest="FEATDIM",
+    )
 
     exe = parser.add_argument_group("Execution type.")
     exe.add_argument(
-        "-test",
-        action="store_true",
-        default=False,
-        help="Execute as testing routine",
-        dest="TEST",
-    )
-    exe.add_argument(
         "-gpu", action="store_true", default=False, help="Execute as on GPU", dest="GPU"
-    )
-    exe.add_argument(
-        "--results-path",
-        "-rp",
-        type=str,
-        help="Path to the model results to be tested.",
-        dest="RESPATH",
     )
 
     data = parser.add_argument_group("Options for data.")
@@ -608,22 +563,8 @@ if __name__ == "__main__":
         help="Data CSV file",
         dest="DATAPATH",
     )
-    data.add_argument(
-        "--test-data-path",
-        "-tdp",
-        type=str,
-        help="Data CSV file for test set",
-        dest="TESTDATAPATH",
-    )
 
     path = parser.add_argument_group("Options for paths.")
-    path.add_argument(
-        "--model-path",
-        "-mp",
-        type=str,
-        help="Model configuration path, only for testing",
-        dest="MODELPATH",
-    )
     path.add_argument(
         "--out-path",
         "-op",
@@ -649,9 +590,6 @@ if __name__ == "__main__":
     args.OUTPATH = os.path.join(args.OUTPATH, args.OUTNAME)
     if not os.path.isdir(args.OUTPATH):
         os.mkdir(args.OUTPATH)
-
-    # if args.TEST:
-    #     test(args)
 
     print("<><><> Arguments <><><>")
     for key, item in vars(args).items():
