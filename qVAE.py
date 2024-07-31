@@ -132,11 +132,17 @@ def qvae(
     Args:
         ndata (``int``): data dimensionality
         nref (``int``): number of reference wires
-        nlayers (``int``, optional): number of layers. Defaults to 1.
-        reupload (``bool``, optional): use data-reuploading. Defaults to True.
+        nlayers (``int``, default ``1``): number of layers. Defaults to 1.
+        reupload (``bool``, default ``True``):  use data-reuploading. Defaults to True.
+        rotseq (``List[Text]``, default ``None``): rotation sequence for trainable layer.
+            Choices are `"X"`, `"Y"` and `"Z"`.
+        parallel_embedding (``int``, default ``1``): Embed data on multiple qubits
+        alternate_embedding (``bool``, default ``False``): alternate the angle embedding rotation
+            between `"Y"` and `"X"`.
 
     Returns:
-        Tuple[Callable, List[int]]: circuit and parameter shape
+        ``Tuple[Callable, List[int]]``:
+        circuit and parameter shape
     """
     rotseq = [_rot["Y"]] if rotseq is None else [_rot[r.upper()] for r in rotseq]
 
@@ -367,6 +373,8 @@ def train(args):
     parameters = jnp.array(np.random.uniform(-np.pi, np.pi, shape))
     opt_state = optimizer.init(parameters)
 
+    to_save, min_val_loss, best_idx = jnp.zeros(shape), np.inf, 0
+
     train_loss, val_loss, lr_state = [], [], []
     with tqdm.tqdm(
         total=args.EPOCHS, unit="Epoch", bar_format="{l_bar}{bar:20}{r_bar}{bar:-20b}"
@@ -397,6 +405,12 @@ def train(args):
                 f"train loss: {train_loss[-1]:.3e}, val loss: {val_loss[-1]:.3e}, lr: {lr_state[-1]:.3e}"
             )
 
+            # Save only the best model
+            if val_loss[-1] <= min_val_loss:
+                to_save = np.array(parameters)
+                min_val_loss = val_loss[-1]
+                best_idx = epoch
+
             # early_stop = early_stop.update(val_loss[-1])
             # if early_stop.should_stop:
             #     print(f"Met early stopping criteria, breaking at epoch {epoch}")
@@ -408,10 +422,11 @@ def train(args):
         yaml.safe_dump(vars(args), f)
     np.savez_compressed(
         os.path.join(args.OUTPATH, "results.npz"),
-        param=np.array(parameters),
+        param=to_save,
         train_loss=train_loss,
         val_loss=val_loss,
         lr=lr_state,
+        best_idx=best_idx,
     )
     print(f" * Output folder: {args.OUTPATH}")
 
