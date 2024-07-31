@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""qVAE for a given dataset"""
+"""Quantum Variational Autoencoder for anomaly detection"""
 
 import argparse
 import os
@@ -15,8 +15,6 @@ import pandas as pd
 import pennylane as qml
 import tqdm
 import yaml
-
-# from flax.training.early_stopping import EarlyStopping
 from pennylane.operation import AnyWires, Operation
 from sklearn.datasets import make_circles, make_moons, make_s_curve
 from sklearn.model_selection import train_test_split
