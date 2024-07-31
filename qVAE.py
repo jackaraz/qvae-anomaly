@@ -331,7 +331,8 @@ def get_data(data_source: Text, feat_dim: int = -1) -> Tuple[np.ndarray, np.ndar
         raise ValueError(f"Unkown data source: {data_source}")
 
     print(
-        f"   * Number of training samples {len(X_train)}, number of validation samples {len(X_val)}"
+        f"   * Number of training samples {len(X_train)}, number of validation samples {len(X_val)}, "
+        f"{X_train.shape[-1]}D feature space"
     )
     return X_train, X_val
 
