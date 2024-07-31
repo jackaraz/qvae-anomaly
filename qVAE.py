@@ -454,14 +454,6 @@ if __name__ == "__main__":
         help="Number of ansätz layers, default 1.",
         dest="NLAYERS",
     )
-    # parameters.add_argument(
-    #     "-nsublayers",
-    #     type=int,
-    #     default=1,
-    #     help="In case of reuploading adds extra layers to the trainable"
-    #     " portion of the ansatz. Defaults to 1.",
-    #     dest="NSUBLAYERS",
-    # )
     parameters.add_argument(
         "--nepochs",
         "-ne",
@@ -470,22 +462,6 @@ if __name__ == "__main__":
         help="Number of epochs, default 500.",
         dest="EPOCHS",
     )
-    # parameters.add_argument(
-    #     "--min-delta",
-    #     "-md",
-    #     type=float,
-    #     default=1e-4,
-    #     help="Minimum delta for early stopping, default 1e-4.",
-    #     dest="MINDELTA",
-    # )
-    # parameters.add_argument(
-    #     "--patientce",
-    #     "-pat",
-    #     type=int,
-    #     default=150,
-    #     help="Patience for early stopping, default 100.",
-    #     dest="PATIENCE",
-    # )
     parameters.add_argument(
         "--batch-size",
         "-bs",
