@@ -1,0 +1,8 @@
+numpy==1.26.4
+pennylane==0.35.1
+jax==0.4.30
+jaxlib==0.4.30
+optax==0.2.3
+tqdm==4.65.0
+yaml==6.0.1
+scikit-learn==1.2.2
