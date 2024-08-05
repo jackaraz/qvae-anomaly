@@ -190,29 +190,31 @@ def batch_split(
     Yields:
         Iterator[jnp.array]: batched data
     """
-    indices = np.arange(len(data))
-    if shuffle:
-        np.random.shuffle(indices)
-    batches = np.array_split(indices, len(indices) // batch_size)
-    if shuffle:
-        np.random.shuffle(batches)
-    if number_of_processes <= 2:
+    if number_of_processes == 1:
+        indices = np.arange(len(data))
+        if shuffle:
+            np.random.shuffle(indices)
+        batches = np.array_split(indices, len(indices) // batch_size)
+        if shuffle:
+            np.random.shuffle(batches)
         for batch in batches:
             yield jnp.array(data[batch, :])
     else:
+        # batches has to be splitted into equal portions
+        indices = np.arange(len(data))
+        if shuffle:
+            np.random.shuffle(indices)
+        numb_data = (len(indices) // batch_size) * batch_size
+        batches = np.array_split(indices[:numb_data], numb_data // batch_size)
+        if shuffle:
+            np.random.shuffle(batches)
         batches = np.array(batches, dtype=object)
+        numb_batches = (len(batches) // number_of_processes) * number_of_processes
         processor_batch = np.array_split(
-            batches, len(batches) // (number_of_processes - 1)
+            batches[:numb_batches], numb_batches // number_of_processes
         )
         for pb in processor_batch:
-            shape_dict = {}
-            for idx, b in enumerate(pb):
-                if b.shape[0] not in shape_dict:
-                    shape_dict[b.shape[0]] = [idx]
-                else:
-                    shape_dict[b.shape[0]].append(idx)
-            for _, idices in shape_dict.items():
-                yield jnp.array(np.stack([data[b, :] for b in pb[idices]]))
+            yield jnp.array(np.stack([data[b.tolist(), :] for b in pb]))
 
 
 def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = False):
@@ -240,7 +242,7 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
                 jax.pmap(
                     lambda dat: batch_cost(dat, param),
                     in_axes=0,
-                    # devices=jax.local_devices()[:],
+                    devices=jax.local_devices(),
                 )(data)
             )
 
