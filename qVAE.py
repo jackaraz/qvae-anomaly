@@ -255,7 +255,7 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
         pars = optax.apply_updates(pars, updates)
         return loss, pars, opt_state
 
-    return batch_cost, train_step
+    return batch_cost, jax.jit(train_step) if parallelise else train_step
 
 
 def circle(
