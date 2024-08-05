@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split
 
 jax.config.update("jax_enable_x64", True)
 
-# pylint: disable=W0621,C0103,W1514,C0200,R0913
+# pylint: disable=W0621,C0103,W1514,C0200,R0913,R0914
 
 _rot = {"X": qml.RX, "Y": qml.RY, "Z": qml.RZ}
 
@@ -176,7 +176,7 @@ def qvae(
 
 
 def batch_split(
-    data: np.array, batch_size: int, shuffle: bool = True
+    data: np.array, batch_size: int, shuffle: bool = True, number_of_processes: int = 1
 ) -> Iterator[jnp.array]:
     """Split data into batches
 
@@ -184,6 +184,8 @@ def batch_split(
         data (np.array): data to be splitted
         batch_size (int): size of each batch
         shuffle (bool, optional): Should the batch be shuffled. Defaults to True.
+        number_of_processes (int, optional): If there are multiple availabel device
+            this will reshape the batch in chunks to be run in parallel.
 
     Yields:
         Iterator[jnp.array]: batched data
@@ -191,32 +193,59 @@ def batch_split(
     indices = np.arange(len(data))
     if shuffle:
         np.random.shuffle(indices)
-    batches = np.array_split(indices, len(indices) // batch_size)
+    batches = np.array_split(indices, len(indices) // (batch_size - 1))
     if shuffle:
         np.random.shuffle(batches)
-    return (jnp.array(data[batch, :]) for batch in batches)
+    if number_of_processes <= 2:
+        for batch in batches:
+            yield jnp.array(data[batch, :])
+    else:
+        batches = np.array(batches, dtype=object)
+        processor_batch = np.array_split(batches, len(batches) // number_of_processes)
+        for pb in processor_batch:
+            shape_dict = {}
+            for idx, b in enumerate(pb):
+                if b.shape[0] not in shape_dict:
+                    shape_dict[b.shape[0]] = [idx]
+                else:
+                    shape_dict[b.shape[0]].append(idx)
+            for _, idices in shape_dict.items():
+                yield jnp.array(np.stack([data[b, :] for b in pb[idices]]))
 
 
-def get_cost(circuit, optimizer, linear_loss: bool = False):
+def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = False):
     """Construct the cost function"""
+
+    def vmap(param):
+        return jax.vmap(lambda dat: circuit(dat, param), in_axes=0)
 
     if linear_loss:
 
         @jax.jit
         def batch_cost(data, param):
-            return jnp.mean(
-                1.0 - (jax.vmap(lambda dat: circuit(dat, param), in_axes=0)(data))
-            )
+            return jnp.mean(1.0 - (vmap(param)(data)))
 
     else:
 
         @jax.jit
         def batch_cost(data, param):
+            return jnp.mean(-jnp.log(vmap(param)(data)))
+
+    if parallelise:
+
+        def objective(data, param):
             return jnp.mean(
-                -jnp.log(jax.vmap(lambda dat: circuit(dat, param), in_axes=0)(data))
+                jax.pmap(
+                    lambda dat: batch_cost(dat, param),
+                    in_axes=0,
+                    devices=jax.local_devices(),
+                )(data)
             )
 
-    value_and_grad = jax.value_and_grad(batch_cost, argnums=1)
+    else:
+        objective = batch_cost
+
+    value_and_grad = jax.value_and_grad(objective, argnums=1)
 
     @jax.jit
     def train_step(batch: jnp.array, pars: jnp.array, opt_state):
@@ -304,6 +333,7 @@ def train(args):
     """Execute training routine"""
 
     jax.config.update("jax_platform_name", "gpu" if args.GPU else "cpu")
+    devices = jax.local_devices()
 
     X_train, X_val = get_data(data_source=args.DATAPATH, feat_dim=args.FEATDIM)
 
@@ -330,7 +360,9 @@ def train(args):
         end_value=1e-4,
     )
 
-    batch_cost, train_step = get_cost(circ, optimizer, args.LINLOSS)
+    batch_cost, train_step = get_cost(
+        circ, optimizer, args.LINLOSS, parallelise=len(devices) > 2 if args.GPU else False
+    )
 
     parameters = jnp.array(np.random.uniform(-np.pi, np.pi, shape))
     opt_state = optimizer.init(parameters)
@@ -344,7 +376,9 @@ def train(args):
 
         for epoch in range(args.EPOCHS):
             batch_loss = []
-            for batch in batch_split(X_train, args.BATCH):
+            for batch in batch_split(
+                X_train, args.BATCH, number_of_processes=len(devices) if args.GPU else 1
+            ):
                 loss, parameters, opt_state = train_step(batch, parameters, opt_state)
                 batch_loss.append(float(loss))
             train_loss.append(np.mean(batch_loss))
