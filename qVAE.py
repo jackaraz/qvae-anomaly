@@ -193,7 +193,7 @@ def batch_split(
     indices = np.arange(len(data))
     if shuffle:
         np.random.shuffle(indices)
-    batches = np.array_split(indices, len(indices) // (batch_size - 1))
+    batches = np.array_split(indices, len(indices) // batch_size)
     if shuffle:
         np.random.shuffle(batches)
     if number_of_processes <= 2:
@@ -201,7 +201,9 @@ def batch_split(
             yield jnp.array(data[batch, :])
     else:
         batches = np.array(batches, dtype=object)
-        processor_batch = np.array_split(batches, len(batches) // number_of_processes)
+        processor_batch = np.array_split(
+            batches, len(batches) // (number_of_processes - 1)
+        )
         for pb in processor_batch:
             shape_dict = {}
             for idx, b in enumerate(pb):
