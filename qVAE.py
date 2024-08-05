@@ -249,7 +249,6 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
 
     value_and_grad = jax.value_and_grad(objective, argnums=1)
 
-    @jax.jit
     def train_step(batch: jnp.array, pars: jnp.array, opt_state):
         loss, grad = value_and_grad(batch, pars)
         updates, opt_state = optimizer.update(grad, opt_state, value=loss)
