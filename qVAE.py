@@ -240,7 +240,7 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
                 jax.pmap(
                     lambda dat: batch_cost(dat, param),
                     in_axes=0,
-                    devices=jax.local_devices(),
+                    # devices=jax.local_devices()[:],
                 )(data)
             )
 
