@@ -254,7 +254,7 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
             value, grad = jax.pmap(
                 lambda dat: value_and_grad(dat, param),
                 in_axes=0,
-                devices=jax.local_devices(),
+                devices=jax.local_devices()[: data.shape[0]],
             )(data)
             return jnp.mean(value), jnp.mean(grad, axis=0)
 
