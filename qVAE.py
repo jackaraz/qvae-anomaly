@@ -235,36 +235,36 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
         def batch_cost(data, param):
             return jnp.mean(-jnp.log(vmap(param)(data)))
 
-    if parallelise:
-
-        def objective(data, param):
-            return jnp.mean(
-                jax.pmap(
-                    lambda dat: batch_cost(dat, param),
-                    in_axes=0,
-                    devices=jax.local_devices(),
-                )(data)
-            )
-
-    else:
-        objective = batch_cost
-
-    value_and_grad = jax.value_and_grad(objective, argnums=1)
     # if parallelise:
 
-    #     def vg(data, param):
-    #         value, grad = jax.pmap(
-    #             lambda dat: value_and_grad(dat, param),
-    #             in_axes=0,
-    #             devices=jax.local_devices()[: data.shape[0]],
-    #         )(data)
-    #         return jnp.mean(value), jnp.mean(grad, axis=0)
+    #     def objective(data, param):
+    #         return jnp.mean(
+    #             jax.pmap(
+    #                 lambda dat: batch_cost(dat, param),
+    #                 in_axes=0,
+    #                 devices=jax.local_devices(),
+    #             )(data)
+    #         )
 
     # else:
-    #     vg = value_and_grad
+    #     objective = batch_cost
+
+    value_and_grad = jax.jit(jax.value_and_grad(batch_cost, argnums=1))
+    if parallelise:
+
+        def vg(data, param):
+            value, grad = jax.pmap(
+                lambda dat: value_and_grad(dat, param),
+                in_axes=0,
+                devices=jax.local_devices()[: data.shape[0]],
+            )(data)
+            return jnp.mean(value), jnp.mean(grad, axis=0)
+
+    else:
+        vg = value_and_grad
 
     def train_step(batch: jnp.array, pars: jnp.array, opt_state):
-        loss, grad = value_and_grad(batch, pars)
+        loss, grad = vg(batch, pars)
         updates, opt_state = optimizer.update(grad, opt_state, value=loss)
         pars = optax.apply_updates(pars, updates)
         return loss, pars, opt_state
