@@ -233,24 +233,36 @@ def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = 
         def batch_cost(data, param):
             return jnp.mean(-jnp.log(vmap(param)(data)))
 
+    # if parallelise:
+
+    #     def objective(data, param):
+    #         return jnp.mean(
+    #             jax.pmap(
+    #                 lambda dat: batch_cost(dat, param),
+    #                 in_axes=0,
+    #                 devices=jax.local_devices(),
+    #             )(data)
+    #         )
+
+    # else:
+    #     objective = batch_cost
+
+    value_and_grad = jax.value_and_grad(batch_cost, argnums=1)
     if parallelise:
 
-        def objective(data, param):
-            return jnp.mean(
-                jax.pmap(
-                    lambda dat: batch_cost(dat, param),
-                    in_axes=0,
-                    devices=jax.local_devices(),
-                )(data)
-            )
+        def vg(data, param):
+            value, grad = jax.pmap(
+                lambda dat: value_and_grad(dat, param),
+                in_axes=0,
+                devices=jax.local_devices(),
+            )(data)
+            return jnp.mean(value), jnp.mean(grad, axis=0)
 
     else:
-        objective = batch_cost
-
-    value_and_grad = jax.value_and_grad(objective, argnums=1)
+        vg = value_and_grad
 
     def train_step(batch: jnp.array, pars: jnp.array, opt_state):
-        loss, grad = value_and_grad(batch, pars)
+        loss, grad = vg(batch, pars)
         updates, opt_state = optimizer.update(grad, opt_state, value=loss)
         pars = optax.apply_updates(pars, updates)
         return loss, pars, opt_state
@@ -334,7 +346,7 @@ def train(args):
     """Execute training routine"""
 
     jax.config.update("jax_platform_name", "gpu" if args.GPU else "cpu")
-    devices = jax.local_devices()
+    devices = jax.devices() if args.MULTIGPU else []
 
     X_train, X_val = get_data(data_source=args.DATAPATH, feat_dim=args.FEATDIM)
 
@@ -378,7 +390,9 @@ def train(args):
         for epoch in range(args.EPOCHS):
             batch_loss = []
             for batch in batch_split(
-                X_train, args.BATCH, number_of_processes=len(devices) if args.GPU else 1
+                X_train,
+                args.BATCH,
+                number_of_processes=max(len(devices), 1) if args.GPU else 1,
             ):
                 loss, parameters, opt_state = train_step(batch, parameters, opt_state)
                 batch_loss.append(float(loss))
@@ -518,7 +532,14 @@ if __name__ == "__main__":
 
     exe = parser.add_argument_group("Execution type.")
     exe.add_argument(
-        "-gpu", action="store_true", default=False, help="Execute as on GPU", dest="GPU"
+        "-gpu", action="store_true", default=False, help="Execute on GPU", dest="GPU"
+    )
+    exe.add_argument(
+        "-multi-gpu",
+        action="store_true",
+        default=False,
+        help="Parallelise on multiple GPUs",
+        dest="MULTIGPU",
     )
 
     data = parser.add_argument_group("Options for data.")
