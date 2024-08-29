@@ -419,7 +419,7 @@ def train(args):
             )
 
             # Save only the best model
-            if val_loss[-1] <= min_val_loss:
+            if val_loss[-1] <= min_val_loss or val_loss[-1] <= train_loss[-1]:
                 to_save = np.array(parameters)
                 min_val_loss = val_loss[-1]
                 best_idx = epoch
