@@ -448,7 +448,7 @@ if __name__ == "__main__":
         "-nref",
         type=int,
         default=3,
-        help="Number of reference qubits, default 3.",
+        help="Number of reference/trash qubits, default 3.",
         dest="NREF",
     )
     parameters.add_argument(
@@ -462,7 +462,7 @@ if __name__ == "__main__":
         "--nepochs",
         "-ne",
         type=int,
-        default=300,
+        default=500,
         help="Number of epochs, default 500.",
         dest="EPOCHS",
     )
@@ -494,7 +494,7 @@ if __name__ == "__main__":
         "-par-emb",
         type=int,
         default=1,
-        help="Embed the dataset multiple times (increases number of qubits). Defaults to 1",
+        help="Embed the dataset multiple times in parallel (increases number of qubits). Defaults to 1 i.e. no parallel embedding.",
         dest="PAREMBED",
     )
     parameters.add_argument(
@@ -528,7 +528,7 @@ if __name__ == "__main__":
         "-feat-dim",
         type=int,
         default=-1,
-        help="Number of features to be included for training. Defaults to -1",
+        help="Number of features to be included for training. Defaults to -1 i.e. all",
         dest="FEATDIM",
     )
 
@@ -540,7 +540,7 @@ if __name__ == "__main__":
         "-multi-gpu",
         action="store_true",
         default=False,
-        help="Parallelise on multiple GPUs",
+        help="Parallelise on multiple GPUs (not properly tested)",
         dest="MULTIGPU",
     )
 
