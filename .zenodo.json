@@ -1,0 +1,28 @@
+{
+    "description": "The role of data embedding in quantum autoencoders for improved anomaly detection",
+    "license": "MIT",
+    "title": "QAE",
+    "version": "v0.0.1",
+    "upload_type": "software",
+    "creators": [
+        {
+            "affiliation": "Thomas Jefferson National Accelerator Facility",
+            "name": "Araz, Jack Y.",
+            "orcid": "0000-0001-8721-8042"
+        }
+    ],
+    "access_right": "open",
+    "keywords": [
+        "quantum machine learning",
+        "quantum autoencoders",
+        "autoencoders",
+        "anomaly detection"
+    ],
+    "related_identifiers": [
+        {
+            "scheme": "url",
+            "identifier": "https://github.com/jackaraz/qvae-anomaly/tree/v0.0.1",
+            "relation": "isSupplementTo"
+        }
+    ]
+}
