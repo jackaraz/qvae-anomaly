@@ -1,4 +1,4 @@
-# Quantum Autoencoder for anomaly detection
+# The role of data embedding in quantum autoencoders for improved anomaly detection
 
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2409.xxxxx&color=brightgreen)](https://arxiv.org/abs/xxxx.xxxx)
 
