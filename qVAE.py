@@ -27,16 +27,26 @@ _rot = {"X": qml.RX, "Y": qml.RY, "Z": qml.RZ}
 
 
 class Layer(Operation):
-    """Based on StronglyEntangling Layer"""
+    """
+    Based on StronglyEntangling Layer
+
+    Args:
+        inpts (``jnp.array``): data input
+        weights (``jnp.array``): trainable parameters
+        wires (``List[int]``): wires that the gates will act on
+        reupload (``bool``, default ``True``): use data reuploading
+        rot (``List[Operation]``, default ``None``): composition of parametrised gates
+        alternate_embedding (``bool``, default ``False``): use alternate embedding
+    """
 
     num_wires = AnyWires
     grad_method = None
 
     def __init__(
         self,
-        inpts,
-        weights,
-        wires,
+        inpts: jnp.array,
+        weights: jnp.array,
+        wires: List[int],
         reupload: bool = True,
         rot: List[Operation] = None,
         alternate_embedding: bool = False,
@@ -218,7 +228,15 @@ def batch_split(
 
 
 def get_cost(circuit, optimizer, linear_loss: bool = False, parallelise: bool = False):
-    """Construct the cost function"""
+    """
+    Construct the cost function
+
+    Args:
+        circuit: quantum circuit
+        optimizer: optax optimiser
+        linear_loss (``bool``, default ``False``): use linear loss i.e. 1-Fidelity
+        parallelise (``bool``, default ``False``): parallelise over multiple GPU (not properly tested)
+    """
 
     def vmap(param):
         return jax.vmap(lambda dat: circuit(dat, param), in_axes=0)
