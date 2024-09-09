@@ -1,6 +1,7 @@
 # The role of data embedding in quantum autoencoders for improved anomaly detection
 
 [![arxiv](https://img.shields.io/static/v1?style=plastic&label=arXiv&message=2409.xxxxx&color=brightgreen)](https://arxiv.org/abs/xxxx.xxxx)
+[![DOI](https://zenodo.org/badge/832323127.svg)](https://zenodo.org/badge/latestdoi/832323127)
 
 ## Datasets
 
