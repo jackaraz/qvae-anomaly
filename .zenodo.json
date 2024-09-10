@@ -21,6 +21,11 @@
     "related_identifiers": [
         {
             "scheme": "url",
+            "identifier": "https://arxiv.org/abs/2409.04519",
+            "relation": "isSupplementTo"
+        },
+        {
+            "scheme": "url",
             "identifier": "https://github.com/jackaraz/qvae-anomaly/tree/v0.0.1",
             "relation": "isSupplementTo"
         }
